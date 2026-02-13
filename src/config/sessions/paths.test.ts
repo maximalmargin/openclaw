@@ -129,13 +129,9 @@ describe("session path safety", () => {
   });
 
   it("accepts absolute sessionFile paths within a different agent's sessions dir", () => {
-    const mainSessionsDir = path.join(
-      resolveSessionTranscriptPath("dummy", "main").replace(/dummy\.jsonl$/, ""),
-    ).replace(/\/$/, "");
+    const mainSessionsDir = path.dirname(resolveSessionTranscriptPath("dummy", "main"));
     const smolSessionFile = resolveSessionTranscriptPath("sess-2", "smol");
 
-    // This should NOT throw — smol's session path is valid even when
-    // validated against main's sessions dir
     const resolved = resolveSessionFilePath(
       "sess-2",
       { sessionFile: smolSessionFile },
