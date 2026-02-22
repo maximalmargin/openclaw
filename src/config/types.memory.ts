@@ -18,6 +18,7 @@ export type MemoryQmdConfig = {
   sessions?: MemoryQmdSessionConfig;
   update?: MemoryQmdUpdateConfig;
   limits?: MemoryQmdLimitsConfig;
+  parallelCollections?: boolean;
   scope?: SessionSendPolicyConfig;
 };
 

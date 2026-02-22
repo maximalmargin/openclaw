@@ -1200,24 +1200,38 @@ export class QmdMemoryManager implements MemorySearchManager {
     limit: number,
     collectionNames: string[],
   ): Promise<QmdQueryResult[]> {
+    const parallel = this.qmd.parallelCollections;
     log.debug(
-      `qmd query multi-collection workaround active (${collectionNames.length} collections)`,
-    );
-    const results = await Promise.allSettled(
-      collectionNames.map(async (collectionName) => {
-        const args = this.buildSearchArgs("query", query, limit);
-        args.push("-c", collectionName);
-        const result = await this.runQmd(args, { timeoutMs: this.qmd.limits.timeoutMs });
-        return parseQmdQueryJson(result.stdout, result.stderr);
-      }),
+      `qmd query multi-collection workaround active (${collectionNames.length} collections, parallel=${parallel})`,
     );
 
-    const bestByDocId = new Map<string, QmdQueryResult>();
-    for (const result of results) {
-      if (result.status !== "fulfilled") {
-        continue;
+    const queryOne = async (collectionName: string) => {
+      const args = this.buildSearchArgs("query", query, limit);
+      args.push("-c", collectionName);
+      const result = await this.runQmd(args, { timeoutMs: this.qmd.limits.timeoutMs });
+      return parseQmdQueryJson(result.stdout, result.stderr);
+    };
+
+    let parsedResults: QmdQueryResult[][];
+    if (parallel) {
+      const settled = await Promise.allSettled(collectionNames.map(queryOne));
+      parsedResults = settled
+        .filter((r): r is PromiseFulfilledResult<QmdQueryResult[]> => r.status === "fulfilled")
+        .map((r) => r.value);
+    } else {
+      parsedResults = [];
+      for (const collectionName of collectionNames) {
+        try {
+          parsedResults.push(await queryOne(collectionName));
+        } catch {
+          // skip failed collection
+        }
       }
-      for (const entry of result.value) {
+    }
+
+    const bestByDocId = new Map<string, QmdQueryResult>();
+    for (const entries of parsedResults) {
+      for (const entry of entries) {
         if (typeof entry.docid !== "string" || !entry.docid.trim()) {
           continue;
         }

@@ -1,6 +1,4 @@
 import path from "node:path";
-import { resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
-import { parseDurationMs } from "../cli/parse-duration.js";
 import type { OpenClawConfig } from "../config/config.js";
 import type { SessionSendPolicyConfig } from "../config/types.base.js";
 import type {
@@ -10,6 +8,8 @@ import type {
   MemoryQmdIndexPath,
   MemoryQmdSearchMode,
 } from "../config/types.memory.js";
+import { resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
+import { parseDurationMs } from "../cli/parse-duration.js";
 import { resolveUserPath } from "../utils.js";
 import { splitShellArgs } from "../utils/shell-argv.js";
 
@@ -57,6 +57,7 @@ export type ResolvedQmdConfig = {
   sessions: ResolvedQmdSessionConfig;
   update: ResolvedQmdUpdateConfig;
   limits: ResolvedQmdLimitsConfig;
+  parallelCollections: boolean;
   includeDefaultMemory: boolean;
   scope?: SessionSendPolicyConfig;
 };
@@ -285,6 +286,7 @@ export function resolveMemoryBackendConfig(params: {
     command,
     searchMode: resolveSearchMode(qmdCfg?.searchMode),
     collections,
+    parallelCollections: qmdCfg?.parallelCollections === true,
     includeDefaultMemory,
     sessions: resolveSessionConfig(qmdCfg?.sessions, workspaceDir),
     update: {
