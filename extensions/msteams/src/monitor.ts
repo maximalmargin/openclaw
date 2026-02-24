@@ -6,10 +6,10 @@ import {
   type OpenClawConfig,
   type RuntimeEnv,
 } from "openclaw/plugin-sdk";
-import { createMSTeamsConversationStoreFs } from "./conversation-store-fs.js";
 import type { MSTeamsConversationStore } from "./conversation-store.js";
-import { formatUnknownError } from "./errors.js";
 import type { MSTeamsAdapter } from "./messenger.js";
+import { createMSTeamsConversationStoreFs } from "./conversation-store-fs.js";
+import { formatUnknownError } from "./errors.js";
 import { registerMSTeamsHandlers, type MSTeamsActivityHandler } from "./monitor-handler.js";
 import { createMSTeamsPollStoreFs, type MSTeamsPollStore } from "./polls.js";
 import {
@@ -294,12 +294,16 @@ export async function monitorMSTeamsProvider(
     });
   };
 
-  // Handle abort signal
-  if (opts.abortSignal) {
-    opts.abortSignal.addEventListener("abort", () => {
-      void shutdown();
+  // Keep the provider alive until abort signal fires.
+  // Without this await, the startAccount promise resolves immediately after
+  // the HTTP server binds, causing the gateway to interpret it as "provider
+  // stopped" and triggering an auto-restart loop (EADDRINUSE on port reuse).
+  if (opts.abortSignal && !opts.abortSignal.aborted) {
+    await new Promise<void>((resolve) => {
+      opts.abortSignal!.addEventListener("abort", () => resolve(), { once: true });
     });
   }
 
+  await shutdown();
   return { app: expressApp, shutdown };
 }
